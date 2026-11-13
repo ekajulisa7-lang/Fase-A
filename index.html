@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PAI CERIA - Belajar PAI Menyenangkan</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #e0f2fe; /* light blue */
+            background-image: radial-gradient(#bae6fd 20%, transparent 20%),
+                              radial-gradient(#bae6fd 20%, transparent 20%);
+            background-color: #e0f2fe;
+            background-position: 0 0, 25px 25px;
+            background-size: 50px 50px;
+        }
+        
+        /* Fun 3D Button Effect */
+        .btn-3d {
+            transition: all 0.1s;
+            box-shadow: 0px 6px 0px rgba(0,0,0,0.2);
+        }
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0px 2px 0px rgba(0,0,0,0.2);
+        }
+
+        .card-3d {
+            box-shadow: 0px 8px 0px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .card-3d:hover {
+            transform: translateY(-4px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #fbbf24; 
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #f59e0b; 
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, getDocs, onSnapshot, query, where, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Provide Firebase instances to the global scope so React can use them
+        window.FirebaseInit = async () => {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'pai-ceria-app';
+            
+            // UNTUK GITHUB PAGES: Ganti nilai di bawah ini dengan konfigurasi Firebase Anda sendiri
+            // Anda bisa mendapatkannya secara gratis dengan membuat proyek di console.firebase.google.com
+            const myFirebaseConfig = {
+                apiKey: "MASUKKAN_API_KEY_ANDA_DI_SINI",
+                authDomain: "MASUKKAN_AUTH_DOMAIN_ANDA_DI_SINI",
+                projectId: "MASUKKAN_PROJECT_ID_ANDA_DI_SINI",
+                storageBucket: "MASUKKAN_STORAGE_BUCKET_ANDA_DI_SINI",
+                messagingSenderId: "MASUKKAN_SENDER_ID_ANDA_DI_SINI",
+                appId: "MASUKKAN_APP_ID_ANDA_DI_SINI"
+            };
+
+            // Menggunakan config Canvas jika ada, jika tidak gunakan config manual (untuk GitHub)
+            const firebaseConfig = typeof __firebase_config !== 'undefined' && Object.keys(JSON.parse(__firebase_config)).length > 0 
+                ? JSON.parse(__firebase_config) 
+                : myFirebaseConfig;
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                const db = getFirestore(app);
+
+                // Authenticate
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                return { 
+                    app, auth, db, appId,
+                    // Expose Firestore methods so React can use them
+                    fs: { doc, setDoc, getDoc, collection, getDocs, onSnapshot, query, where, deleteDoc }
+                };
+            } catch (error) {
+                console.error("Firebase Error: Pastikan konfigurasi Firebase sudah diisi dengan benar untuk GitHub Pages.", error);
+                
+                // Fallback mock agar UI website tidak error (hanya database yang tidak tersimpan)
+                return {
+                    app: null, auth: { currentUser: { uid: 'local-test-uid' } }, db: null, appId,
+                    fs: { 
+                        doc: () => ({}), setDoc: async () => {}, getDoc: async () => ({ exists: () => false }), 
+                        collection: () => ({}), getDocs: async () => ([]), onSnapshot: () => (() => {}), 
+                        query: () => ({}), where: () => ({}), deleteDoc: async () => {} 
+                    }
+                };
+            }
+        };
+    </script>
+
+    <script type="text/babel" data-type="module">
+        const { useState, useEffect, useMemo, useCallback } = React;
+
+        // --- CURRICULUM DATA ---
+        const CURRICULUM = {
+            1: [
+                { id: 'k1b1', title: 'Aku Cinta Al-Qur\'an', icon: '📖', color: 'bg-green-400', 
+                  desc: 'Mengenal huruf Hijaiyah, Harakat, dan Surah Al-Fatihah.',
+                  materi: [
+                      { title: 'Huruf Hijaiyah', content: 'Ada 29 huruf Hijaiyah. Mari kita kenali bentuknya! Alif (ا), Ba (ب), Ta (ت), Tha (ث)... Huruf-huruf ini adalah dasar untuk membaca Al-Qur\'an.', audio: 'Mari bersama-sama menyebutkan huruf hijaiyah.', image: '🔤', miniQuiz: { q: 'Berapakah jumlah huruf Hijaiyah?', options: ['25', '29', '30'], answer: '29' } },
+                      { title: 'Mengenal Harakat', content: 'Harakat adalah tanda baca. Fathah (ـَ) berbunyi A. Kasrah (ـِ) berbunyi I. Dhammah (ـُ) berbunyi U. Contoh: بَ (Ba), بِ (Bi), بُ (Bu).', image: '✍️', miniQuiz: { q: 'Tanda baca Fathah (ـَ) berbunyi...', options: ['A', 'I', 'U'], answer: 'A' } },
+                      { title: 'Surah Al-Fatihah', content: 'Al-Fatihah artinya Pembukaan. Terdiri dari 7 ayat. Bismillahir-rahmanir-rahim...', image: '🤲', miniQuiz: { q: 'Al-Fatihah memiliki arti...', options: ['Penutup', 'Pertengahan', 'Pembukaan'], answer: 'Pembukaan' } }
+                  ],
+                  game: {
+                      type: 'quiz', title: 'Misi Penjelajah Huruf (Asesmen Bab 1)',
+                      questions: [
+                          { q: 'Tanda baca (ـَ) di atas huruf disebut?', options: ['Fathah', 'Kasrah', 'Dhammah'], answer: 'Fathah' },
+                          { q: 'Huruf (ب) dengan harakat Kasrah dibaca?', options: ['Ba', 'Bi', 'Bu'], answer: 'Bi' },
+                          { q: 'Surah Al-Fatihah terdiri dari berapa ayat?', options: ['5', '6', '7'], answer: '7' },
+                          { q: 'Al-Fatihah artinya...', options: ['Penutup', 'Pembukaan', 'Pertengahan'], answer: 'Pembukaan' },
+                          { q: 'Huruf pertama dalam Hijaiyah adalah...', options: ['Ba', 'Ta', 'Alif'], answer: 'Alif' },
+                          { q: 'Harakat Dhammah (ـُ) berbunyi...', options: ['A', 'I', 'U'], answer: 'U' },
+                          { q: 'Ayat pertama surah Al-Fatihah berbunyi...', options: ['Bismillah...', 'Alhamdulillah...', 'Ar-Rahman...'], answer: 'Bismillah...' },
+                          { q: 'Kita membaca Al-Fatihah setiap kali...', options: ['Makan', 'Salat', 'Tidur'], answer: 'Salat' },
+                          { q: 'Huruf (ت) dengan harakat Fathah dibaca...', options: ['Ta', 'Ti', 'Tu'], answer: 'Ta' },
+                          { q: 'Jumlah huruf hijaiyah ada...', options: ['28/29', '20', '30'], answer: '28/29' }
+                      ]
+                  }
+                },
+                { id: 'k1b2', title: 'Mengenal Rukun Iman', icon: '⭐', color: 'bg-yellow-400', 
+                  desc: 'Memahami 6 Rukun Iman dengan mudah.',
+                  materi: [
+                      { title: 'Apa itu Rukun Iman?', content: 'Rukun Iman adalah pilar kepercayaan kita sebagai seorang muslim. Ada 6 Rukun Iman yang wajib kita yakini di dalam hati.', image: '🕌', miniQuiz: { q: 'Rukun Iman wajib diyakini di dalam...', options: ['Buku', 'Hati', 'Pikiran'], answer: 'Hati' } },
+                      { title: '6 Rukun Iman', content: '1. Iman kepada Allah. 2. Iman kepada Malaikat. 3. Iman kepada Kitab-kitab. 4. Iman kepada Rasul. 5. Iman kepada Hari Kiamat. 6. Iman kepada Qada dan Qadar.', image: '✨', miniQuiz: { q: 'Iman kepada Allah adalah rukun iman ke...', options: ['1', '2', '3'], answer: '1' } }
+                  ],
+                  game: {
+                      type: 'quiz', title: 'Petualangan Bintang Iman (Asesmen Bab 2)',
+                      questions: [
+                          { q: 'Rukun Iman yang pertama adalah iman kepada...', options: ['Malaikat', 'Rasul', 'Allah'], answer: 'Allah' },
+                          { q: 'Rukun iman berjumlah...', options: ['5', '6', '7'], answer: '6' },
+                          { q: 'Meyakini adanya hari kiamat adalah rukun iman ke...', options: ['4', '5', '6'], answer: '5' },
+                          { q: 'Rukun iman ke-2 adalah iman kepada...', options: ['Kitab', 'Malaikat', 'Rasul'], answer: 'Malaikat' },
+                          { q: 'Kita wajib mengimani kitab-kitab Allah. Rukun iman ke berapa itu?', options: ['3', '4', '5'], answer: '3' },
+                          { q: 'Rukun iman wajib diyakini di dalam...', options: ['Hati', 'Pikiran', 'Buku'], answer: 'Hati' },
+                          { q: 'Utusan Allah yang wajib kita imani disebut...', options: ['Malaikat', 'Rasul', 'Manusia'], answer: 'Rasul' },
+                          { q: 'Takdir baik dan buruk berasal dari...', options: ['Malaikat', 'Allah', 'Rasul'], answer: 'Allah' },
+                          { q: 'Rukun iman ke-6 adalah iman kepada...', options: ['Qada dan Qadar', 'Hari Kiamat', 'Malaikat'], answer: 'Qada dan Qadar' },
+                          { q: 'Orang yang beriman disebut...', options: ['Muslim', 'Mukmin', 'Muhsin'], answer: 'Mukmin' }
+                      ]
+                  }
+                },
+                { id: 'k1b3', title: 'Membaca Basmalah & Hamdalah', icon: '🗣️', color: 'bg-orange-400', desc: 'Membiasakan kata-kata baik setiap hari.', 
+                  materi: [{title: 'Kata-kata Baik', content: 'Membaca Bismillah sebelum kegiatan. Alhamdulillah sesudahnya.', image: '😊', miniQuiz: { q: 'Sebelum makan kita membaca...', options: ['Bismillah', 'Alhamdulillah', 'Takbir'], answer: 'Bismillah' }}],
+                  game: { type: 'quiz', title: 'Kata Baik', questions: [{q: 'Sebelum makan membaca...', options: ['Bismillah', 'Alhamdulillah', 'Allahu Akbar'], answer: 'Bismillah'}] } 
+                },
+                { id: 'k1b4', title: 'Mengenal Rukun Islam', icon: '🕌', color: 'bg-blue-400', desc: 'Syahadat, Salat, Zakat, Puasa, Haji.',
+                  materi: [{title: '5 Rukun Islam', content: 'Islam memiliki 5 rukun dasar yang wajib dijalankan.', image: '🖐️', miniQuiz: { q: 'Ada berapa Rukun Islam?', options: ['4', '5', '6'], answer: '5' }}],
+                  game: { type: 'quiz', title: 'Rukun Islam', questions: [{q: 'Rukun Islam ke-1 adalah...', options: ['Salat', 'Syahadat', 'Zakat'], answer: 'Syahadat'}] } 
+                },
+                { id: 'k1b5', title: 'Nabi & Rasul Panutanku', icon: '👑', color: 'bg-purple-400', desc: 'Mengenal 25 Nabi dan Rasul serta Mukjizatnya.',
+                  materi: [{title: 'Nabi dan Rasul', content: 'Ada 25 Nabi dan Rasul yang wajib diketahui.', image: '📜', miniQuiz: { q: 'Nabi pertama yang diutus Allah adalah...', options: ['Nuh', 'Adam', 'Muhammad'], answer: 'Adam' }}],
+                  game: { type: 'quiz', title: 'Nabi & Rasul', questions: [{q: 'Nabi pertama adalah...', options: ['Nuh', 'Adam', 'Muhammad'], answer: 'Adam'}] } 
+                }
+            ],
+            2: [
+                { id: 'k2b1', title: 'Ayo Belajar Al-Qur\'an', icon: '📖', color: 'bg-green-400', 
+                  desc: 'Membaca dan menghafal Surah An-Nas.',
+                  materi: [
+                      { title: 'Membaca Surah An-Nas', content: 'An-Nas artinya Manusia. Terdiri dari 6 ayat. Surah ini berisi permintaan perlindungan kepada Allah dari godaan setan. Ayat pertama: Qul a\'uzu birabbin-nas (Katakanlah: Aku berlindung kepada Tuhannya manusia).', image: '📖', miniQuiz: { q: 'Arti dari kata "An-Nas" adalah?', options: ['Waktu Subuh', 'Manusia', 'Pembukaan'], answer: 'Manusia' } },
+                      { title: 'Pesan Pokok Surah An-Nas', content: 'Kita harus selalu memohon perlindungan hanya kepada Allah Swt., karena Allah adalah Tuhan, Raja, dan Sembahan manusia. Setan selalu menggoda manusia agar berbuat jahat.', image: '🛡️', miniQuiz: { q: 'Kita memohon perlindungan hanya kepada...', options: ['Malaikat', 'Pohon', 'Allah Swt.'], answer: 'Allah Swt.' } },
+                      { title: 'Huruf Hijaiyah Bersambung', content: 'Huruf Hijaiyah bisa berubah bentuk ketika disambung di awal, tengah, dan akhir. Contoh: (بـ) di awal, (ـسـ) di tengah, (ـم) di akhir menjadi بِسْمِ.', image: '🔗', miniQuiz: { q: 'Huruf Hijaiyah jika disambung akan...', options: ['Berubah bentuk', 'Sama saja', 'Hilang'], answer: 'Berubah bentuk' } }
+                  ],
+                  game: {
+                      type: 'quiz', title: 'Asesmen Bab 1: Penjaga Al-Qur\'an',
+                      questions: [
+                          { q: 'Arti dari kata "An-Nas" adalah?', options: ['Waktu Subuh', 'Manusia', 'Pembukaan'], answer: 'Manusia' },
+                          { q: 'Surah An-Nas terdiri dari ... ayat.', options: ['5', '6', '7'], answer: '6' },
+                          { q: 'Kepada siapa kita memohon perlindungan menurut Surah An-Nas?', options: ['Malaikat', 'Manusia', 'Allah Swt.'], answer: 'Allah Swt.' },
+                          { q: 'Makhluk yang selalu membisikkan kejahatan ke dada manusia adalah...', options: ['Malaikat', 'Setan', 'Hewan'], answer: 'Setan' },
+                          { q: 'Ayat pertama Surah An-Nas berbunyi: "Qul a\'uzu birabbin-..."', options: ['Nas', 'Falaq', 'Ahad'], answer: 'Nas' },
+                          { q: 'Allah adalah "Malikin-nas", artinya Allah adalah ... manusia.', options: ['Pencipta', 'Raja', 'Penjaga'], answer: 'Raja' },
+                          { q: 'Membaca Surah An-Nas berguna agar kita terhindar dari...', options: ['Godaan setan', 'Penyakit', 'Kemiskinan'], answer: 'Godaan setan' },
+                          { q: 'Bentuk huruf hijaiyah saat disambung bisa...', options: ['Tetap sama', 'Berubah bentuk', 'Hilang'], answer: 'Berubah bentuk' },
+                          { q: 'Surah An-Nas diturunkan di kota...', options: ['Madinah', 'Makkah', 'Mesir'], answer: 'Makkah' },
+                          { q: 'Ilahi artinya...', options: ['Tuhan', 'Manusia', 'Raja'], answer: 'Tuhan' }
+                      ]
+                  }
+                },
+                { id: 'k2b2', title: 'Mari Mengenal Allah', icon: '✨', color: 'bg-yellow-400', 
+                  desc: 'Belajar Asmaul Husna Al-Hafiz, Al-Wali, Al-Alim, Al-Khabir.',
+                  materi: [
+                      { title: 'Mengenal Al-Hafiz', content: 'Al-Hafiz artinya Allah Maha Memelihara. Allah memelihara alam semesta, langit, bumi, dan seluruh makhluk-Nya agar tidak hancur.', image: '🌍', miniQuiz: { q: 'Allah Maha Memelihara adalah arti dari...', options: ['Al-Hafiz', 'Al-Wali', 'Al-Khabir'], answer: 'Al-Hafiz' } },
+                      { title: 'Mengenal Al-Wali', content: 'Al-Wali artinya Allah Maha Melindungi dan Maha Menolong. Allah selalu melindungi hamba-Nya yang beriman dan berbuat baik.', image: '🤲', miniQuiz: { q: 'Al-Wali artinya Allah Maha...', options: ['Mengetahui', 'Melindungi', 'Memelihara'], answer: 'Melindungi' } },
+                      { title: 'Mengenal Al-\'Alim', content: 'Al-\'Alim artinya Allah Maha Mengetahui. Allah mengetahui segala sesuatu, baik yang tampak maupun yang tersembunyi di dalam hati.', image: '👁️', miniQuiz: { q: 'Allah tahu isi hati kita karena Allah bersifat...', options: ['Al-Wali', 'Al-\'Alim', 'Al-Hafiz'], answer: 'Al-\'Alim' } },
+                      { title: 'Mengenal Al-Khabir', content: 'Al-Khabir artinya Allah Maha Mengenal dan Mengetahui secara detail (teliti). Tidak ada satupun yang luput dari pengawasan Allah.', image: '🔎', miniQuiz: { q: 'Mengetahui dengan sangat teliti disebut...', options: ['Al-Khabir', 'Al-Wali', 'Al-Hafiz'], answer: 'Al-Khabir' } }
+                  ],
+                  game: {
+                      type: 'quiz', title: 'Asesmen Bab 2: Kunci Asmaul Husna',
+                      questions: [
+                          { q: 'Asmaul Husna artinya nama-nama Allah yang...', options: ['Baik dan Indah', 'Panjang', 'Kuat'], answer: 'Baik dan Indah' },
+                          { q: 'Allah Maha Memelihara alam semesta. Ini arti dari...', options: ['Al-Hafiz', 'Al-Wali', 'Al-Khabir'], answer: 'Al-Hafiz' },
+                          { q: 'Al-Wali artinya Allah Maha...', options: ['Melihat', 'Melindungi', 'Mendengar'], answer: 'Melindungi' },
+                          { q: 'Tidak ada yang bisa bersembunyi dari Allah karena Allah...', options: ['Al-Hafiz', 'Al-\'Alim', 'Al-Wali'], answer: 'Al-\'Alim' },
+                          { q: 'Allah mengetahui dengan sangat teliti dan detail. Ini arti...', options: ['Al-Khabir', 'Al-Wali', 'Al-Hafiz'], answer: 'Al-Khabir' },
+                          { q: 'Sebagai hamba yang meyakini Al-Hafiz, kita harus ikut menjaga...', options: ['Lingkungan/Alam', 'Uang saja', 'Mainan saja'], answer: 'Lingkungan/Alam' },
+                          { q: 'Orang yang rajin belajar karena yakin Allah Maha Mengetahui sedang meneladani sifat...', options: ['Al-\'Alim', 'Al-Wali', 'Al-Hafiz'], answer: 'Al-\'Alim' },
+                          { q: 'Saat kita takut, kita meminta perlindungan kepada Allah yang memiliki nama...', options: ['Al-Khabir', 'Al-Wali', 'Al-Hafiz'], answer: 'Al-Wali' },
+                          { q: 'Allah tahu isi hati kita karena Allah memiliki nama...', options: ['Al-Khabir', 'Al-Hafiz', 'Al-Wali'], answer: 'Al-Khabir' },
+                          { q: 'Jumlah Asmaul Husna yang sering kita ketahui ada...', options: ['99', '25', '10'], answer: '99' }
+                      ]
+                  }
+                },
+                { id: 'k2b3', title: 'Ayo Berperilaku Terpuji', icon: '❤️', color: 'bg-pink-400', 
+                  desc: 'Belajar kasih sayang, empati, dan kejujuran.',
+                  materi: [
+                      { title: 'Sayang kepada Sesama', content: 'Agama Islam mengajarkan kita untuk saling menyayangi. Kita harus sayang kepada orang tua, guru, teman, dan bahkan hewan serta tumbuhan.', image: '👨‍👩‍👧‍👦', miniQuiz: { q: 'Kepada hewan dan tumbuhan kita harus bersikap...', options: ['Kasar', 'Sayang', 'Acuh'], answer: 'Sayang' } },
+                      { title: 'Sikap Empati', content: 'Empati berarti kita bisa merasakan apa yang dirasakan orang lain. Jika teman sedih, kita ikut sedih dan menghiburnya. Jika teman kesulitan, kita bantu.', image: '🤝', miniQuiz: { q: 'Teman sedang sakit, sikap empati kita adalah...', options: ['Menjenguknya', 'Mengejeknya', 'Membiarkannya'], answer: 'Menjenguknya' } },
+                      { title: 'Pentingnya Kejujuran', content: 'Jujur artinya berkata benar dan apa adanya, tidak berbohong. Anak yang jujur akan disayang Allah, disayang teman, dan hatinya tenang.', image: '😇', miniQuiz: { q: 'Berkata benar dan tidak berbohong disebut...', options: ['Sombong', 'Jujur', 'Empati'], answer: 'Jujur' } }
+                  ],
+                  game: {
+                      type: 'quiz', title: 'Asesmen Bab 3: Pahlawan Akhlak',
+                      questions: [
+                          { q: 'Sikap menyayangi sesama manusia akan membawa...', options: ['Kedamaian', 'Pertengkaran', 'Kesedihan'], answer: 'Kedamaian' },
+                          { q: 'Jika teman sedang sakit, yang harus kita lakukan adalah...', options: ['Mengejeknya', 'Menjenguk dan mendoakan', 'Membiarkannya'], answer: 'Menjenguk dan mendoakan' },
+                          { q: 'Merasakan penderitaan orang lain dan ingin membantu disebut...', options: ['Jujur', 'Empati', 'Sombong'], answer: 'Empati' },
+                          { q: 'Menemukan dompet di jalan, sikap jujur yang kita lakukan adalah...', options: ['Menyembunyikannya', 'Melaporkan ke guru/polisi', 'Menghabiskan uangnya'], answer: 'Melaporkan ke guru/polisi' },
+                          { q: 'Berkata yang sebenarnya, tidak ditambah atau dikurangi disebut...', options: ['Bohong', 'Jujur', 'Empati'], answer: 'Jujur' },
+                          { q: 'Nabi Muhammad saw. memiliki sifat jujur dan dapat dipercaya sehingga diberi gelar...', options: ['Al-Amin', 'As-Siddiq', 'Al-Faruq'], answer: 'Al-Amin' },
+                          { q: 'Anak yang suka berbohong akan...', options: ['Banyak teman', 'Dijauhi teman', 'Disayang Allah'], answer: 'Dijauhi teman' },
+                          { q: 'Ibu sedang sibuk membersihkan rumah. Sikap empati kita adalah...', options: ['Ikut membantu', 'Asyik bermain', 'Menonton TV'], answer: 'Ikut membantu' },
+                          { q: 'Contoh kasih sayang kepada hewan adalah...', options: ['Memberi makan', 'Memukulnya', 'Mengurung tanpa makan'], answer: 'Memberi makan' },
+                          { q: 'Berperilaku jujur di sekolah contohnya...', options: ['Menyontek', 'Tidak menyontek saat ujian', 'Membolos'], answer: 'Tidak menyontek saat ujian' }
+                      ]
+                  }
+                },
+                { id: 'k2b4', title: 'Alhamdulillah Aku Salat', icon: '🧎', color: 'bg-blue-400', 
+                  desc: 'Mengenal Azan, Iqamah, dan Praktik Salat.',
+                  materi: [
+                      { title: 'Mengenal Azan dan Iqamah', content: 'Azan adalah panggilan bahwa waktu salat telah tiba. Orang yang azan disebut Muazin. Setelah azan, dikumandangkan Iqamah sebagai tanda salat berjamaah segera dimulai.', image: '🕌', miniQuiz: { q: 'Orang yang mengumandangkan azan disebut...', options: ['Imam', 'Makmum', 'Muazin'], answer: 'Muazin' } },
+                      { title: 'Waktu Salat Fardu', content: 'Salat fardu (wajib) ada 5 waktu dalam sehari semalam: Subuh (2 rakaat), Zuhur (4 rakaat), Asar (4 rakaat), Magrib (3 rakaat), dan Isya (4 rakaat).', image: '⏱️', miniQuiz: { q: 'Salat Subuh terdiri dari berapa rakaat?', options: ['2', '3', '4'], answer: '2' } },
+                      { title: 'Gerakan Salat', content: 'Salat diawali dengan Takbiratul Ihram, kemudian Rukuk, Iktidal, Sujud, Duduk di antara dua sujud, Tahiyat, dan diakhiri dengan Salam menoleh ke kanan dan kiri.', image: '🧎‍♂️', miniQuiz: { q: 'Gerakan pertama saat salat adalah...', options: ['Sujud', 'Rukuk', 'Takbiratul Ihram'], answer: 'Takbiratul Ihram' } }
+                  ],
+                  game: {
+                      type: 'quiz', title: 'Asesmen Bab 4: Penjaga Waktu Salat',
+                      questions: [
+                          { q: 'Panggilan yang menunjukkan waktu salat telah tiba disebut...', options: ['Azan', 'Iqamah', 'Takbir'], answer: 'Azan' },
+                          { q: 'Orang yang mengumandangkan azan disebut...', options: ['Makmum', 'Imam', 'Muazin'], answer: 'Muazin' },
+                          { q: 'Salat wajib bagi umat Islam dalam sehari semalam ada ... waktu.', options: ['3', '4', '5'], answer: '5' },
+                          { q: 'Salat yang dikerjakan pada pagi hari saat terbit fajar adalah salat...', options: ['Zuhur', 'Subuh', 'Magrib'], answer: 'Subuh' },
+                          { q: 'Jumlah rakaat salat Magrib adalah...', options: ['2', '3', '4'], answer: '3' },
+                          { q: 'Gerakan pertama untuk memulai salat dinamakan...', options: ['Rukuk', 'Sujud', 'Takbiratul Ihram'], answer: 'Takbiratul Ihram' },
+                          { q: 'Setelah rukuk, kita bangun berdiri yang disebut...', options: ['Iktidal', 'Sujud', 'Tahiyat'], answer: 'Iktidal' },
+                          { q: 'Gerakan salat dengan meletakkan dahi ke lantai disebut...', options: ['Rukuk', 'Sujud', 'Iktidal'], answer: 'Sujud' },
+                          { q: 'Salat selalu diakhiri dengan gerakan...', options: ['Takbir', 'Salam', 'Sujud'], answer: 'Salam' },
+                          { q: 'Iqamah dikumandangkan sebagai tanda bahwa...', options: ['Waktu salat masuk', 'Salat segera dimulai', 'Salat telah selesai'], answer: 'Salat segera dimulai' }
+                      ]
+                  }
+                },
+                { id: 'k2b5', title: 'Kisah Nabi Nuh a.s.', icon: '⛴️', color: 'bg-teal-400', 
+                  desc: 'Keteladanan kesabaran Nabi Nuh dan kisah kapal besar.',
+                  materi: [
+                      { title: 'Berdakwah dengan Sabar', content: 'Nabi Nuh a.s. berdakwah mengajak kaumnya menyembah Allah selama ratusan tahun. Namun, banyak kaumnya yang mengejek dan tidak mau beriman.', image: '👳‍♂️', miniQuiz: { q: 'Sikap Nabi Nuh saat diejek kaumnya adalah...', options: ['Marah', 'Sabar', 'Menangis'], answer: 'Sabar' } },
+                      { title: 'Membuat Kapal Besar', content: 'Allah memerintahkan Nabi Nuh membuat kapal besar di atas bukit. Orang kafir mengejeknya, tetapi Nabi Nuh tetap taat pada perintah Allah.', image: '⛴️', miniQuiz: { q: 'Nabi Nuh diperintahkan untuk membuat...', options: ['Rumah', 'Senjata', 'Kapal Besar'], answer: 'Kapal Besar' } },
+                      { title: 'Peristiwa Banjir Besar', content: 'Hujan turun dengan sangat lebat hingga terjadilah banjir bandang. Hanya Nabi Nuh, pengikutnya yang beriman, dan hewan berpasangan di dalam kapal yang selamat.', image: '🌊', miniQuiz: { q: 'Siapa yang selamat dari banjir besar tersebut?', options: ['Orang di kapal', 'Semua orang', 'Orang di gunung'], answer: 'Orang di kapal' } }
+                  ],
+                  game: {
+                      type: 'quiz', title: 'Asesmen Bab 5: Petualangan Kapal Nabi Nuh',
+                      questions: [
+                          { q: 'Nabi Nuh a.s. diutus oleh Allah untuk mengajak kaumnya...', options: ['Membuat patung', 'Menyembah Allah', 'Berperang'], answer: 'Menyembah Allah' },
+                          { q: 'Sikap kaum Nabi Nuh saat diajak menyembah Allah kebanyakan...', options: ['Menolak dan mengejek', 'Langsung percaya', 'Membantu dakwah'], answer: 'Menolak dan mengejek' },
+                          { q: 'Nabi Nuh a.s. berdakwah selama bertahun-tahun dengan penuh...', options: ['Kesabaran', 'Kemarahan', 'Ketakutan'], answer: 'Kesabaran' },
+                          { q: 'Allah Swt. memerintahkan Nabi Nuh untuk membuat...', options: ['Rumah mewah', 'Kapal yang besar', 'Senjata'], answer: 'Kapal yang besar' },
+                          { q: 'Hukuman atau azab bagi kaum Nabi Nuh yang tidak beriman adalah...', options: ['Gempa bumi', 'Banjir besar', 'Angin topan'], answer: 'Banjir besar' },
+                          { q: 'Siapa yang selamat dari musibah banjir tersebut?', options: ['Orang yang beriman di kapal', 'Semua orang kaya', 'Orang yang sembunyi di gunung'], answer: 'Orang yang beriman di kapal' },
+                          { q: 'Putra Nabi Nuh a.s. yang durhaka dan tenggelam bernama...', options: ['Ismail', 'Kan\'an', 'Ibrahim'], answer: 'Kan\'an' },
+                          { q: 'Selain manusia, yang diselamatkan di dalam kapal Nabi Nuh adalah...', options: ['Harta benda', 'Hewan secara berpasangan', 'Patung berhala'], answer: 'Hewan secara berpasangan' },
+                          { q: 'Nabi Nuh membuat kapal di daerah...', options: ['Pinggir laut', 'Dataran tinggi / bukit', 'Tengah pasar'], answer: 'Dataran tinggi / bukit' },
+                          { q: 'Dari kisah Nabi Nuh a.s., kita belajar untuk selalu bersikap pantang...', options: ['Bermain', 'Menyerah', 'Makan'], answer: 'Menyerah' }
+                      ]
+                  }
+                }
+            ]
+        };
+
+        // --- COMPONENTS ---
+
+        // Reusable UI
+        const Button = ({ children, onClick, color = 'bg-yellow-400', className = '' }) => (
+            <button 
+                onClick={onClick}
+                className={`${color} text-slate-800 font-bold py-3 px-6 rounded-2xl btn-3d border-2 border-slate-800 hover:brightness-110 ${className}`}
+            >
+                {children}
+            </button>
+        );
+
+        const Modal = ({ isOpen, onClose, title, children, hideCloseBtn }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl p-6 max-w-md w-full border-4 border-blue-400 card-3d">
+                        <h2 className="text-2xl font-bold text-center mb-4 text-blue-600">{title}</h2>
+                        <div className="mb-6">{children}</div>
+                        {!hideCloseBtn && (
+                            <div className="text-center">
+                                <Button onClick={onClose} color="bg-red-400" className="text-white">Tutup</Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Game Engines
+        const QuizEngine = ({ gameData, onComplete }) => {
+            const [currentQ, setCurrentQ] = useState(0);
+            const [score, setScore] = useState(0);
+            const [finished, setFinished] = useState(false);
+            const [feedback, setFeedback] = useState(null);
+
+            const handleAnswer = (opt) => {
+                if (feedback) return; // Prevent double click
+                
+                const isCorrect = opt === gameData.questions[currentQ].answer;
+                setFeedback(isCorrect ? 'correct' : 'wrong');
+                
+                if (isCorrect) setScore(s => s + 1);
+
+                setTimeout(() => {
+                    setFeedback(null);
+                    if (currentQ < gameData.questions.length - 1) {
+                        setCurrentQ(c => c + 1);
+                    } else {
+                        setFinished(true);
+                        // Calculate percentage score (0-100)
+                        const finalScore = Math.round(((score + (isCorrect ? 1 : 0)) / gameData.questions.length) * 100);
+                        onComplete(finalScore);
+                    }
+                }, 1500);
+            };
+
+            if (finished) {
+                return (
+                    <div className="text-center py-10 bg-white rounded-3xl p-6 border-4 border-yellow-400">
+                        <h3 className="text-3xl font-bold text-green-500 mb-4">Luar Biasa! 🎉</h3>
+                        <p className="text-xl mb-4">Kamu telah menyelesaikan misi ini.</p>
+                        <div className="text-5xl mb-6">Skor: {Math.round((score / gameData.questions.length) * 100)}</div>
+                        <p className="text-lg text-gray-600">Nilai sudah disimpan secara otomatis.</p>
+                    </div>
+                );
+            }
+
+            const q = gameData.questions[currentQ];
+            return (
+                <div className="bg-white rounded-3xl p-6 md:p-10 border-4 border-blue-400 relative">
+                    <div className="absolute top-4 right-4 bg-yellow-300 px-4 py-1 rounded-full font-bold">
+                        Soal {currentQ + 1} / {gameData.questions.length}
+                    </div>
+                    <h3 className="text-2xl font-bold mb-8 mt-6 text-center">{q.q}</h3>
+                    <div className="flex flex-col gap-4">
+                        {q.options.map((opt, i) => {
+                            let btnColor = 'bg-blue-100 hover:bg-blue-200';
+                            if (feedback) {
+                                if (opt === q.answer) btnColor = 'bg-green-400 text-white';
+                                else if (feedback === 'wrong') btnColor = 'bg-red-400 text-white';
+                            }
+                            return (
+                                <button 
+                                    key={i} 
+                                    onClick={() => handleAnswer(opt)}
+                                    className={`p-4 rounded-2xl text-xl font-bold border-2 border-slate-800 btn-3d transition-colors ${btnColor}`}
+                                >
+                                    {opt}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {feedback === 'correct' && <div className="mt-6 text-center text-xl font-bold text-green-500 animate-bounce">Masyaallah, Jawabanmu Benar! ⭐</div>}
+                    {feedback === 'wrong' && <div className="mt-6 text-center text-xl font-bold text-red-500">Ups, kurang tepat. Ayo coba soal berikutnya!</div>}
+                </div>
+            );
+        };
+
+        const MatchEngine = ({ gameData, onComplete }) => {
+            const [selectedA, setSelectedA] = useState(null);
+            const [selectedB, setSelectedB] = useState(null);
+            const [matched, setMatched] = useState([]);
+            const [mistakes, setMistakes] = useState(0);
+
+            // Shuffle items initially
+            const itemsA = useMemo(() => [...gameData.pairs].sort(() => Math.random() - 0.5), [gameData]);
+            const itemsB = useMemo(() => [...gameData.pairs].sort(() => Math.random() - 0.5), [gameData]);
+
+            useEffect(() => {
+                if (selectedA && selectedB) {
+                    if (selectedA.id === selectedB.id) {
+                        setMatched(prev => [...prev, selectedA.id]);
+                        setSelectedA(null);
+                        setSelectedB(null);
+                    } else {
+                        setMistakes(m => m + 1);
+                        setTimeout(() => {
+                            setSelectedA(null);
+                            setSelectedB(null);
+                        }, 800);
+                    }
+                }
+            }, [selectedA, selectedB]);
+
+            useEffect(() => {
+                if (matched.length === gameData.pairs.length && gameData.pairs.length > 0) {
+                    // Calculate score based on mistakes. Max 100, min 20.
+                    let finalScore = 100 - (mistakes * 15);
+                    if (finalScore < 20) finalScore = 20;
+                    setTimeout(() => onComplete(finalScore), 1000);
+                }
+            }, [matched, mistakes, gameData, onComplete]);
+
+            if (matched.length === gameData.pairs.length) {
+                return (
+                    <div className="text-center py-10 bg-white rounded-3xl p-6 border-4 border-yellow-400">
+                        <h3 className="text-3xl font-bold text-green-500 mb-4">Hebat Sekali! 🎉</h3>
+                        <p className="text-xl mb-4">Semua pasangan berhasil ditemukan.</p>
+                        <p className="text-lg text-gray-600">Nilai sudah disimpan.</p>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="bg-white rounded-3xl p-6 border-4 border-orange-400">
+                    <h3 className="text-xl font-bold text-center mb-6">Cocokkan kartu di kiri dengan pasangannya di kanan!</h3>
+                    <div className="grid grid-cols-2 gap-4 md:gap-8">
+                        {/* Column A */}
+                        <div className="flex flex-col gap-3">
+                            {itemsA.map(item => {
+                                const isMatched = matched.includes(item.id);
+                                const isSelected = selectedA?.id === item.id;
+                                let bgClass = 'bg-blue-100 border-blue-400';
+                                if (isMatched) bgClass = 'bg-green-300 border-green-500 opacity-50';
+                                else if (isSelected) bgClass = 'bg-yellow-300 border-yellow-500';
+                                
+                                return (
+                                    <button 
+                                        key={`a-${item.id}`}
+                                        disabled={isMatched || selectedA}
+                                        onClick={() => setSelectedA(item)}
+                                        className={`p-4 rounded-xl border-4 font-bold text-lg text-slate-700 transition-all ${bgClass}`}
+                                    >
+                                        {item.a}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {/* Column B */}
+                        <div className="flex flex-col gap-3">
+                            {itemsB.map(item => {
+                                const isMatched = matched.includes(item.id);
+                                const isSelected = selectedB?.id === item.id;
+                                let bgClass = 'bg-purple-100 border-purple-400';
+                                if (isMatched) bgClass = 'bg-green-300 border-green-500 opacity-50';
+                                else if (isSelected) bgClass = 'bg-yellow-300 border-yellow-500';
+                                
+                                return (
+                                    <button 
+                                        key={`b-${item.id}`}
+                                        disabled={isMatched || selectedB}
+                                        onClick={() => setSelectedB(item)}
+                                        className={`p-4 rounded-xl border-4 font-bold text-lg text-slate-700 transition-all ${bgClass}`}
+                                    >
+                                        {item.b}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Main Application
+        const App = () => {
+            const [fbContext, setFbContext] = useState(null);
+            const [user, setUser] = useState(null); // { uid, role, name, grade, ... }
+            const [view, setView] = useState('login'); // login, student_dash, chapter, teacher_dash
+            const [activeChapter, setActiveChapter] = useState(null);
+            const [showModal, setShowModal] = useState({ isOpen: false, msg: '' });
+            const [studentToDelete, setStudentToDelete] = useState(null); // State for delete confirmation
+            const [loading, setLoading] = useState(true);
+            const [isTeacher, setIsTeacher] = useState(false);
+            const [chapterStep, setChapterStep] = useState('menu'); // menu, materi, game
+            const [materiIndex, setMateriIndex] = useState(0);
+            const [miniQuizPassed, setMiniQuizPassed] = useState(false);
+            const [additionalLinks, setAdditionalLinks] = useState([]);
+            const [newLink, setNewLink] = useState({ grade: 1, chapterId: 'k1b1', title: '', url: '' });
+
+            // Fetch students & progress for Teacher View
+            const [allStudents, setAllStudents] = useState([]);
+            const [allProgress, setAllProgress] = useState({});
+
+            // Initialize Firebase
+            useEffect(() => {
+                window.FirebaseInit().then((ctx) => {
+                    setFbContext(ctx);
+                    setLoading(false);
+                    // Try to load user from local state (simulating a session for this demo)
+                    const savedUser = localStorage.getItem('paiceria_user');
+                    if (savedUser) {
+                        const parsed = JSON.parse(savedUser);
+                        setUser(parsed);
+                        setView(parsed.role === 'teacher' ? 'teacher_dash' : 'student_dash');
+                    }
+                });
+            }, []);
+
+            // Fetch additional links (Teacher & Student)
+            useEffect(() => {
+                if (!fbContext) return;
+                const { db, appId, fs } = fbContext;
+                const linksRef = fs.collection(db, 'artifacts', appId, 'public', 'data', 'additional_links');
+                const unsub = fs.onSnapshot(linksRef, (snap) => {
+                    const links = [];
+                    snap.forEach(doc => links.push({ id: doc.id, ...doc.data() }));
+                    setAdditionalLinks(links);
+                }, (err) => console.error("Error fetching links:", err));
+                return () => unsub();
+            }, [fbContext]);
+
+            const showAlert = (msg) => setShowModal({ isOpen: true, msg });
+
+            // Helper: Save user data to Firestore
+            const saveUserData = async (userData) => {
+                if (!fbContext || !fbContext.auth.currentUser) return;
+                const { db, appId, fs } = fbContext;
+                // Gunakan userData.uid agar bisa menyimpan banyak siswa berbeda di satu perangkat
+                const publicUsersRef = fs.doc(db, 'artifacts', appId, 'public', 'data', 'users', userData.uid);
+                
+                try {
+                    await fs.setDoc(publicUsersRef, userData, { merge: true });
+                    setUser(userData);
+                    localStorage.setItem('paiceria_user', JSON.stringify(userData));
+                } catch (e) {
+                    console.error("Error saving user:", e);
+                    showAlert("Gagal menyimpan data ke Cloud. Mode Demo aktif.");
+                    setUser(userData); // Proceed anyway for UI demonstration
+                }
+            };
+
+            // Helper: Save Progress
+            const saveProgress = async (chapterId, score) => {
+                if (!fbContext || !fbContext.auth.currentUser || !user) return;
+                const { db, appId, fs } = fbContext;
+                // Simpan nilai berdasarkan UID siswa
+                const progressRef = fs.doc(db, 'artifacts', appId, 'public', 'data', 'progress', user.uid);
+                
+                const updateData = { [chapterId]: { score, completed: true, date: new Date().toISOString() } };
+                
+                try {
+                    await fs.setDoc(progressRef, updateData, { merge: true });
+                    showAlert(`Selamat! Kamu mendapat nilai ${score}. Nilaimu sudah tersimpan di raport.`);
+                } catch (e) {
+                    console.error("Error saving progress:", e);
+                    showAlert("Gagal menyimpan nilai ke Cloud. (Mode Demo)");
+                }
+            };
+
+            // Teacher: Fetch all data
+            const loadTeacherData = useCallback(async () => {
+                if (!fbContext) return;
+                const { db, appId, fs } = fbContext;
+                try {
+                    const usersColl = fs.collection(db, 'artifacts', appId, 'public', 'data', 'users');
+                    const progressColl = fs.collection(db, 'artifacts', appId, 'public', 'data', 'progress');
+                    
+                    const userSnap = await fs.getDocs(usersColl);
+                    const students = [];
+                    userSnap.forEach(doc => {
+                        const data = doc.data();
+                        if (data.role === 'student') {
+                            students.push({ id: doc.id, ...data });
+                        }
+                    });
+                    setAllStudents(students);
+
+                    const progSnap = await fs.getDocs(progressColl);
+                    const progData = {};
+                    progSnap.forEach(doc => {
+                        progData[doc.id] = doc.data();
+                    });
+                    setAllProgress(progData);
+                } catch (e) {
+                    console.error("Error fetching teacher data:", e);
+                    showAlert("Gagal mengambil data dari Cloud (Aturan Permissions/Indexes).");
+                }
+            }, [fbContext]);
+
+            useEffect(() => {
+                if (view === 'teacher_dash') {
+                    loadTeacherData();
+                }
+            }, [view, loadTeacherData]);
+
+            // Helper: Delete Student Data
+            const handleDeleteStudent = async () => {
+                if (!fbContext || !studentToDelete) return;
+                const { db, appId, fs } = fbContext;
+                
+                try {
+                    // Delete user identity document
+                    const userRef = fs.doc(db, 'artifacts', appId, 'public', 'data', 'users', studentToDelete.id);
+                    await fs.deleteDoc(userRef);
+                    
+                    // Delete user progress document
+                    const progressRef = fs.doc(db, 'artifacts', appId, 'public', 'data', 'progress', studentToDelete.id);
+                    await fs.deleteDoc(progressRef);
+                    
+                    showAlert(`Data siswa ${studentToDelete.name} berhasil dihapus.`);
+                    setStudentToDelete(null);
+                    loadTeacherData(); // Refresh the table
+                } catch (error) {
+                    console.error("Error deleting student:", error);
+                    showAlert("Gagal menghapus data. Pastikan koneksi internet stabil.");
+                    setStudentToDelete(null);
+                }
+            };
+
+
+            // View Renders
+            const renderLogin = () => {
+                const handleLogin = (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.target);
+                    
+                    if (isTeacher) {
+                        const pin = formData.get('pin');
+                        if (pin === '1234') { // Mock teacher PIN
+                            const tUser = { role: 'teacher', name: formData.get('name'), uid: 'teacher-id' };
+                            // Guru tidak disimpan ke DB users agar tidak menimpa data siswa
+                            setUser(tUser);
+                            localStorage.setItem('paiceria_user', JSON.stringify(tUser));
+                            setView('teacher_dash');
+                        } else {
+                            showAlert("PIN Guru salah. (Petunjuk: 1234)");
+                        }
+                    } else {
+                        // Buat ID unik untuk setiap siswa agar bisa tes banyak siswa di 1 perangkat
+                        const baseUid = fbContext?.auth?.currentUser?.uid || 'temp';
+                        const studentUid = `${baseUid}-${Date.now()}`;
+
+                        const sUser = {
+                            role: 'student',
+                            name: formData.get('name'),
+                            nis: formData.get('nis'),
+                            school: formData.get('school'),
+                            grade: parseInt(formData.get('grade')),
+                            uid: studentUid
+                        };
+                        if (!sUser.name || !sUser.school) {
+                            showAlert("Mohon isi nama dan sekolah!");
+                            return;
+                        }
+                        saveUserData(sUser);
+                        setView('student_dash');
+                    }
+                };
+
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center p-4">
+                        <div className="mb-8 text-center">
+                            <h1 className="text-5xl md:text-6xl font-black text-blue-600 mb-2 drop-shadow-md">PAI CERIA</h1>
+                            <p className="text-xl md:text-2xl text-green-700 font-bold bg-white/70 inline-block px-4 py-1 rounded-full border-2 border-white">
+                                Belajar PAI Menyenangkan, Bermain Sambil Beriman
+                            </p>
+                        </div>
+                        
+                        <div className="bg-white p-8 rounded-[40px] shadow-2xl w-full max-w-md border-8 border-yellow-300">
+                            <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-full">
+                                <button 
+                                    className={`flex-1 py-3 rounded-full font-bold transition-colors ${!isTeacher ? 'bg-blue-400 text-white shadow-md' : 'text-gray-500 hover:bg-gray-200'}`}
+                                    onClick={() => setIsTeacher(false)}
+                                >
+                                    Siswa
+                                </button>
+                                <button 
+                                    className={`flex-1 py-3 rounded-full font-bold transition-colors ${isTeacher ? 'bg-green-500 text-white shadow-md' : 'text-gray-500 hover:bg-gray-200'}`}
+                                    onClick={() => setIsTeacher(true)}
+                                >
+                                    Guru PAI
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleLogin} className="space-y-4">
+                                <div>
+                                    <label className="block text-gray-700 font-bold mb-2">Nama Lengkap</label>
+                                    <input name="name" type="text" className="w-full p-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-blue-400 focus:outline-none font-bold" placeholder="Masukkan nama..." required />
+                                </div>
+                                
+                                {!isTeacher ? (
+                                    <>
+                                        <div>
+                                            <label className="block text-gray-700 font-bold mb-2">Asal Sekolah</label>
+                                            <input name="school" type="text" className="w-full p-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-blue-400 focus:outline-none" placeholder="SD Negeri 1..." required />
+                                        </div>
+                                        <div className="flex gap-4">
+                                            <div className="flex-1">
+                                                <label className="block text-gray-700 font-bold mb-2">NIS (Opsional)</label>
+                                                <input name="nis" type="text" className="w-full p-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-blue-400 focus:outline-none" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <label className="block text-gray-700 font-bold mb-2">Kelas</label>
+                                                <select name="grade" className="w-full p-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-blue-400 focus:outline-none font-bold" required>
+                                                    <option value="1">Kelas 1</option>
+                                                    <option value="2">Kelas 2</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div>
+                                        <label className="block text-gray-700 font-bold mb-2">PIN Guru</label>
+                                        <input name="pin" type="password" className="w-full p-4 bg-gray-50 border-2 border-gray-200 rounded-2xl focus:border-green-400 focus:outline-none font-bold tracking-widest text-center" placeholder="****" required />
+                                    </div>
+                                )}
+                                
+                                <Button type="submit" color={isTeacher ? "bg-green-400" : "bg-yellow-400"} className="w-full text-xl py-4 mt-4">
+                                    {isTeacher ? 'Masuk Dashboard Guru' : 'MULAI BELAJAR! 🚀'}
+                                </Button>
+                            </form>
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderStudentDashboard = () => {
+                const gradeData = CURRICULUM[user.grade];
+                
+                return (
+                    <div className="min-h-screen pb-10">
+                        {/* Navbar */}
+                        <div className="bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b-4 border-white shadow-sm p-4 flex justify-between items-center">
+                            <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center text-xl font-bold shadow-md">
+                                    {user.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                    <h2 className="font-bold text-slate-800 leading-tight">Halo, {user.name}!</h2>
+                                    <p className="text-sm text-blue-600 font-bold">SD Kelas {user.grade}</p>
+                                </div>
+                            </div>
+                            <Button onClick={() => { localStorage.removeItem('paiceria_user'); setUser(null); setView('login'); }} color="bg-red-400" className="text-white text-sm py-2 px-4">Keluar</Button>
+                        </div>
+
+                        {/* Welcome Banner */}
+                        <div className="max-w-4xl mx-auto px-4 mt-8">
+                            <div className="bg-gradient-to-r from-blue-400 to-sky-300 rounded-[30px] p-8 text-white shadow-xl relative overflow-hidden border-4 border-white card-3d">
+                                <div className="relative z-10">
+                                    <h1 className="text-3xl md:text-4xl font-black mb-2">Petualangan Seru Belajar PAI Kelas {user.grade}</h1>
+                                    <p className="text-lg font-medium opacity-90 max-w-lg">Pilih BAB di bawah ini untuk memulai petualanganmu hari ini. Kumpulkan nilai dan jadilah juara!</p>
+                                </div>
+                                <div className="absolute right-[-20px] bottom-[-20px] text-[120px] opacity-20 rotate-12">
+                                    🕌
+                                </div>
+                            </div>
+
+                            {/* Chapter List */}
+                            <h3 className="text-2xl font-bold text-slate-800 mt-10 mb-6 flex items-center gap-2">
+                                🗺️ Peta Petualangan
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {gradeData.map((chap, idx) => (
+                                    <div 
+                                        key={chap.id}
+                                        onClick={() => { setActiveChapter(chap); setChapterStep('menu'); setView('chapter'); }}
+                                        className={`bg-white rounded-3xl p-6 border-4 border-b-8 cursor-pointer card-3d flex flex-col h-full`}
+                                        style={{ borderColor: chap.color.replace('bg-', '') }}
+                                    >
+                                        <div className={`w-16 h-16 rounded-2xl ${chap.color} text-3xl flex items-center justify-center shadow-inner mb-4`}>
+                                            {chap.icon}
+                                        </div>
+                                        <h4 className="text-xl font-black text-slate-800 mb-2">BAB {idx + 1}. {chap.title}</h4>
+                                        <p className="text-gray-500 font-medium mb-4 flex-grow">{chap.desc}</p>
+                                        
+                                        <div className="flex justify-between items-center mt-auto pt-4 border-t-2 border-gray-100">
+                                            <span className="text-sm font-bold text-blue-500">Mulai Belajar ➔</span>
+                                            {/* Show star if completed (mock status) */}
+                                            {idx < 2 && <span className="text-yellow-400 text-xl" title="Sudah dikerjakan">⭐</span>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderChapter = () => {
+                if (!activeChapter) return null;
+
+                const hasMateri = activeChapter.materi && activeChapter.materi.length > 0;
+                const hasGame = !!activeChapter.game;
+                
+                const chapterLinks = additionalLinks.filter(l => l.chapterId === activeChapter.id && l.grade === user.grade);
+
+                const handleNextMateri = () => {
+                    const currentMateri = activeChapter.materi[materiIndex];
+                    if (currentMateri.miniQuiz && !miniQuizPassed) {
+                        showAlert("Selesaikan misi kecil di bawah terlebih dahulu ya!");
+                        return;
+                    }
+                    
+                    setMiniQuizPassed(false);
+                    if (materiIndex < activeChapter.materi.length - 1) {
+                        setMateriIndex(i => i + 1);
+                    } else {
+                        showAlert("Hebat! Kamu telah selesai mempelajari materi bab ini.");
+                        setChapterStep('menu'); // Return to menu to take assessment
+                    }
+                };
+
+                const playSimulatedAudio = () => {
+                    showAlert("🔊 Memutar Audio...\n\n(Simulasi: Siswa mendengarkan pelafalan materi ini)");
+                };
+
+                return (
+                    <div className="min-h-screen bg-slate-50 pb-20">
+                        {/* Header */}
+                        <div className={`${activeChapter.color} p-4 md:p-6 text-white shadow-md sticky top-0 z-10 flex items-center gap-4`}>
+                            <button onClick={() => {
+                                if (chapterStep === 'menu') setView('student_dash');
+                                else setChapterStep('menu');
+                            }} className="bg-white/20 p-2 rounded-xl hover:bg-white/30 transition font-bold">
+                                ⬅️ {chapterStep === 'menu' ? 'Kembali' : 'Menu Bab'}
+                            </button>
+                            <h2 className="text-xl md:text-2xl font-black flex-1 truncate">{activeChapter.icon} {activeChapter.title}</h2>
+                        </div>
+
+                        <div className="max-w-3xl mx-auto px-4 mt-8">
+                            
+                            {/* CHAPTER MENU: Separate Materi and Game */}
+                            {chapterStep === 'menu' && (
+                                <div className="bg-white rounded-[40px] p-8 shadow-xl border-4 border-slate-200 text-center">
+                                    <div className={`w-24 h-24 mx-auto rounded-3xl ${activeChapter.color} text-5xl flex items-center justify-center shadow-inner mb-6`}>
+                                        {activeChapter.icon}
+                                    </div>
+                                    <h3 className="text-3xl font-black text-slate-800 mb-4">{activeChapter.title}</h3>
+                                    <p className="text-xl text-gray-600 mb-10 font-medium px-4">{activeChapter.desc}</p>
+                                    
+                                    <div className="flex flex-col md:flex-row gap-6 justify-center">
+                                        <button 
+                                            onClick={() => { setMateriIndex(0); setChapterStep('materi'); }}
+                                            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white text-xl font-bold py-6 px-6 rounded-3xl btn-3d border-b-8 border-blue-700 flex flex-col items-center gap-2 transition-all"
+                                        >
+                                            <span className="text-4xl">📚</span>
+                                            Pelajari Materi
+                                        </button>
+                                        
+                                        <button 
+                                            onClick={() => { setChapterStep('game'); }}
+                                            className="flex-1 bg-yellow-400 hover:bg-yellow-500 text-slate-800 text-xl font-bold py-6 px-6 rounded-3xl btn-3d border-b-8 border-yellow-600 flex flex-col items-center gap-2 transition-all"
+                                        >
+                                            <span className="text-4xl">🎮</span>
+                                            Mulai Asesmen
+                                        </button>
+                                    </div>
+
+                                    {chapterLinks.length > 0 && (
+                                        <div className="mt-10 bg-blue-50 p-6 rounded-3xl border-4 border-blue-200 text-left">
+                                            <h4 className="text-xl font-bold text-blue-800 mb-4 flex items-center gap-2">📺 Materi Tambahan dari Guru</h4>
+                                            <div className="flex flex-col gap-3">
+                                                {chapterLinks.map(link => (
+                                                    <a key={link.id} href={link.url} target="_blank" rel="noreferrer" className="bg-white p-4 rounded-xl shadow border-2 border-blue-300 flex items-center justify-between hover:bg-blue-100 transition btn-3d">
+                                                        <span className="font-bold text-blue-700">{link.title}</span>
+                                                        <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">▶️ Buka Link</span>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* MATERI VIEW */}
+                            {chapterStep === 'materi' && hasMateri && (
+                                <div className="bg-white rounded-[40px] p-6 md:p-10 shadow-xl border-4 border-slate-200">
+                                    <div className="flex justify-between items-center mb-8">
+                                        <span className="bg-blue-100 text-blue-600 font-bold px-4 py-1 rounded-full text-sm">
+                                            Materi {materiIndex + 1} dari {activeChapter.materi.length}
+                                        </span>
+                                        <div className="flex gap-1">
+                                            {activeChapter.materi.map((_, i) => (
+                                                <div key={i} className={`w-3 h-3 rounded-full ${i === materiIndex ? 'bg-blue-500' : 'bg-gray-200'}`}></div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    
+                                    <h3 className="text-3xl font-black text-slate-800 mb-6">{activeChapter.materi[materiIndex].title}</h3>
+                                    
+                                    <div className="w-full h-48 bg-sky-100 rounded-3xl mb-6 flex items-center justify-center border-4 border-sky-200 shadow-inner">
+                                        <span className="text-6xl drop-shadow-md">
+                                            {activeChapter.materi[materiIndex].image || '🖼️'}
+                                        </span>
+                                    </div>
+
+                                    <p className="text-xl text-gray-700 leading-relaxed mb-8 font-medium">
+                                        {activeChapter.materi[materiIndex].content}
+                                    </p>
+
+                                    {activeChapter.materi[materiIndex].audio && (
+                                        <button 
+                                            onClick={playSimulatedAudio}
+                                            className="flex items-center gap-3 bg-green-100 text-green-700 px-6 py-4 rounded-2xl font-bold mb-8 hover:bg-green-200 transition-colors w-full justify-center border-2 border-green-300"
+                                        >
+                                            <span className="text-2xl">🔊</span> Dengarkan Pelafalan
+                                        </button>
+                                    )}
+                                    
+                                    {/* MISI KECIL (MINI QUIZ) */}
+                                    {activeChapter.materi[materiIndex].miniQuiz && (
+                                        <div className="mt-8 p-6 bg-yellow-50 rounded-3xl border-4 border-yellow-300 shadow-inner">
+                                            <h4 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">🎯 Misi Kecil: {activeChapter.materi[materiIndex].miniQuiz.q}</h4>
+                                            <div className="flex flex-wrap gap-3">
+                                                {activeChapter.materi[materiIndex].miniQuiz.options.map((opt, i) => (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => {
+                                                            if (opt === activeChapter.materi[materiIndex].miniQuiz.answer) {
+                                                                setMiniQuizPassed(true);
+                                                            } else {
+                                                                showAlert("Ups, kurang tepat. Ayo coba lagi!");
+                                                            }
+                                                        }}
+                                                        className={`px-4 py-3 rounded-xl font-bold border-2 btn-3d transition-colors text-lg ${miniQuizPassed && opt === activeChapter.materi[materiIndex].miniQuiz.answer ? 'bg-green-400 text-white border-green-600' : 'bg-white border-yellow-400 text-slate-700 hover:bg-yellow-100'}`}
+                                                    >
+                                                        {opt}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            {miniQuizPassed && <p className="mt-4 text-green-600 font-bold animate-pulse text-lg">✨ Masyaallah, Jawabanmu Benar! Kamu bisa lanjut ke materi berikutnya.</p>}
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-end pt-6 border-t-2 border-gray-100 mt-6">
+                                        <Button 
+                                            onClick={handleNextMateri} 
+                                            color={(!activeChapter.materi[materiIndex].miniQuiz || miniQuizPassed) ? "bg-blue-500" : "bg-gray-300"} 
+                                            className={`text-white px-8 ${(!activeChapter.materi[materiIndex].miniQuiz || miniQuizPassed) ? '' : 'opacity-50 cursor-not-allowed'}`}
+                                        >
+                                            {materiIndex < activeChapter.materi.length - 1 ? 'Selanjutnya ➔' : 'Selesai Baca ✅'}
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {chapterStep === 'materi' && !hasMateri && (
+                                <div className="text-center p-10 bg-white rounded-3xl shadow-md border-4 border-gray-200">
+                                    <p className="text-xl font-bold text-gray-500">Materi sedang disiapkan untuk bab ini.</p>
+                                </div>
+                            )}
+
+                            {/* GAME/ASESMEN VIEW */}
+                            {chapterStep === 'game' && hasGame && (
+                                <div>
+                                    <div className="text-center mb-6 bg-white p-6 rounded-3xl shadow-sm border-4 border-yellow-300">
+                                        <h2 className="text-3xl font-black text-slate-800">{activeChapter.game.title}</h2>
+                                        <p className="text-gray-600 font-bold mt-2">Pilih jawaban yang paling tepat untuk mendapatkan nilai!</p>
+                                    </div>
+                                    
+                                    {activeChapter.game.type === 'quiz' && (
+                                        <QuizEngine gameData={activeChapter.game} onComplete={(score) => saveProgress(activeChapter.id, score)} />
+                                    )}
+                                    {activeChapter.game.type === 'match' && (
+                                        <MatchEngine gameData={activeChapter.game} onComplete={(score) => saveProgress(activeChapter.id, score)} />
+                                    )}
+                                </div>
+                            )}
+                            
+                            {chapterStep === 'game' && !hasGame && (
+                                <div className="text-center p-10 bg-white rounded-3xl shadow-md border-4 border-gray-200">
+                                    <p className="text-xl font-bold text-gray-500">Asesmen sedang disiapkan untuk bab ini.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderTeacherDashboard = () => {
+                // Chapters columns
+                const k1Caps = CURRICULUM[1];
+                const k2Caps = CURRICULUM[2];
+
+                const handleAddLink = async (e) => {
+                    e.preventDefault();
+                    if (!fbContext) return;
+                    const { db, appId, fs } = fbContext;
+                    try {
+                        const docRef = fs.doc(fs.collection(db, 'artifacts', appId, 'public', 'data', 'additional_links'));
+                        await fs.setDoc(docRef, newLink);
+                        showAlert("Materi tambahan berhasil ditambahkan!");
+                        setNewLink({ ...newLink, title: '', url: '' });
+                    } catch (err) {
+                        console.error(err);
+                        showAlert("Gagal menambahkan link.");
+                    }
+                };
+
+                const handleDeleteLink = async (linkId) => {
+                    if (!fbContext) return;
+                    const { db, appId, fs } = fbContext;
+                    try {
+                        await fs.deleteDoc(fs.doc(db, 'artifacts', appId, 'public', 'data', 'additional_links', linkId));
+                    } catch (err) {
+                        console.error(err);
+                    }
+                };
+
+                return (
+                    <div className="min-h-screen bg-gray-50 pb-10">
+                        {/* Navbar */}
+                        <div className="bg-green-600 p-4 text-white shadow-md flex justify-between items-center">
+                            <h2 className="text-xl font-bold flex items-center gap-2">👨‍🏫 Dashboard Guru PAI</h2>
+                            <Button onClick={() => { localStorage.removeItem('paiceria_user'); setUser(null); setView('login'); }} color="bg-red-500" className="text-white text-sm py-2 px-4 shadow-none">Logout</Button>
+                        </div>
+
+                        <div className="max-w-6xl mx-auto px-4 mt-8">
+                            <div className="flex gap-4 mb-8">
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-blue-500 flex-1">
+                                    <h4 className="text-gray-500 text-sm font-bold">Total Siswa</h4>
+                                    <p className="text-3xl font-black text-slate-800">{allStudents.length}</p>
+                                </div>
+                                <div className="bg-white p-6 rounded-2xl shadow-sm border-l-4 border-green-500 flex-1">
+                                    <h4 className="text-gray-500 text-sm font-bold">Kelas Aktif</h4>
+                                    <p className="text-3xl font-black text-slate-800">2 (Kls 1 & 2)</p>
+                                </div>
+                            </div>
+
+                            <div className="bg-white rounded-3xl shadow-lg overflow-hidden border border-gray-200">
+                                <div className="p-6 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                                    <h3 className="text-xl font-bold text-slate-800">📊 Rekap Nilai Siswa</h3>
+                                    <button onClick={loadTeacherData} className="text-sm bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-bold hover:bg-blue-200">Refresh Data</button>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-gray-100 text-gray-600 text-sm uppercase">
+                                                <th className="p-4 border-b">Nama Siswa</th>
+                                                <th className="p-4 border-b text-center">Kelas</th>
+                                                <th className="p-4 border-b text-center" title="Aku Cinta Al-Qur'an (K1) / Ayo Belajar (K2)">BAB 1</th>
+                                                <th className="p-4 border-b text-center" title="Rukun Iman (K1) / Mengenal Allah (K2)">BAB 2</th>
+                                                <th className="p-4 border-b text-center">Rata-rata</th>
+                                                <th className="p-4 border-b text-center">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {allStudents.length === 0 ? (
+                                                <tr><td colSpan="6" className="p-8 text-center text-gray-500">Belum ada data siswa terdaftar. Coba login sebagai siswa terlebih dahulu.</td></tr>
+                                            ) : (
+                                                allStudents.map(s => {
+                                                    const sProg = allProgress[s.id] || {};
+                                                    const b1Id = s.grade === 1 ? 'k1b1' : 'k2b1';
+                                                    const b2Id = s.grade === 1 ? 'k1b2' : 'k2b2';
+                                                    const score1 = sProg[b1Id]?.score ?? '-';
+                                                    const score2 = sProg[b2Id]?.score ?? '-';
+                                                    
+                                                    // Simple average
+                                                    let avg = '-';
+                                                    const scores = [];
+                                                    if (typeof score1 === 'number') scores.push(score1);
+                                                    if (typeof score2 === 'number') scores.push(score2);
+                                                    if (scores.length > 0) avg = Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+
+                                                    const getBadge = (val) => {
+                                                        if (val === '-') return <span className="text-gray-400">-</span>;
+                                                        if (val >= 80) return <span className="bg-green-100 text-green-700 px-2 py-1 rounded-md font-bold">{val}</span>;
+                                                        if (val >= 60) return <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md font-bold">{val}</span>;
+                                                        return <span className="bg-red-100 text-red-700 px-2 py-1 rounded-md font-bold">{val}</span>;
+                                                    };
+
+                                                    return (
+                                                        <tr key={s.id} className="border-b hover:bg-gray-50">
+                                                            <td className="p-4 font-bold text-slate-700">
+                                                                {s.name}
+                                                                <div className="text-xs text-gray-400 font-normal">{s.school} {s.nis ? `| NIS: ${s.nis}` : ''}</div>
+                                                            </td>
+                                                            <td className="p-4 text-center font-bold text-blue-600">{s.grade}</td>
+                                                            <td className="p-4 text-center">{getBadge(score1)}</td>
+                                                            <td className="p-4 text-center">{getBadge(score2)}</td>
+                                                            <td className="p-4 text-center">{getBadge(avg)}</td>
+                                                            <td className="p-4 text-center">
+                                                                <button 
+                                                                    onClick={() => setStudentToDelete(s)}
+                                                                    className="bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-bold hover:bg-red-200 transition-colors"
+                                                                >
+                                                                    Hapus
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            {/* Section: Tambah Materi YouTube / Tambahan */}
+                            <div className="mt-8 bg-white rounded-3xl shadow-lg overflow-hidden border border-gray-200 p-6 md:p-8">
+                                <h3 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">📺 Tambah Materi YouTube / Web</h3>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    <form onSubmit={handleAddLink} className="flex flex-col gap-4 bg-blue-50 p-6 rounded-2xl border-2 border-blue-200">
+                                        <div className="flex gap-4">
+                                            <div className="flex-1">
+                                                <label className="block text-sm font-bold text-gray-700 mb-1">Kelas</label>
+                                                <select
+                                                    className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none"
+                                                    value={newLink.grade}
+                                                    onChange={(e) => setNewLink({ ...newLink, grade: parseInt(e.target.value), chapterId: e.target.value === '1' ? 'k1b1' : 'k2b1' })}
+                                                >
+                                                    <option value={1}>Kelas 1</option>
+                                                    <option value={2}>Kelas 2</option>
+                                                </select>
+                                            </div>
+                                            <div className="flex-1">
+                                                <label className="block text-sm font-bold text-gray-700 mb-1">BAB Pembelajaran</label>
+                                                <select
+                                                    className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none"
+                                                    value={newLink.chapterId}
+                                                    onChange={(e) => setNewLink({ ...newLink, chapterId: e.target.value })}
+                                                >
+                                                    {CURRICULUM[newLink.grade].map(c => (
+                                                        <option key={c.id} value={c.id}>{c.title}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 mb-1">Judul Materi</label>
+                                            <input type="text" placeholder="Misal: Animasi Kisah Nabi Nuh" className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-400 outline-none" required value={newLink.title} onChange={e => setNewLink({...newLink, title: e.target.value})} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 mb-1">URL / Link Web</label>
+                                            <input type="url" placeholder="https://youtube.com/..." className="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-400 outline-none" required value={newLink.url} onChange={e => setNewLink({...newLink, url: e.target.value})} />
+                                        </div>
+                                        <Button type="submit" color="bg-blue-500" className="text-white mt-2">Tambah Materi</Button>
+                                    </form>
+                                    
+                                    <div className="bg-gray-50 p-6 rounded-2xl border-2 border-gray-200">
+                                        <h4 className="font-bold text-gray-700 mb-4 border-b pb-2">Daftar Link yang Tersimpan</h4>
+                                        <div className="flex flex-col gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                            {additionalLinks.length === 0 ? (
+                                                <p className="text-gray-500 italic">Belum ada materi tambahan.</p>
+                                            ) : (
+                                                additionalLinks.map(link => (
+                                                    <div key={link.id} className="p-4 bg-white border border-gray-200 rounded-xl shadow-sm flex flex-col gap-2 relative">
+                                                        <div className="flex justify-between items-start">
+                                                            <div>
+                                                                <span className="bg-yellow-200 text-yellow-800 text-xs font-bold px-2 py-1 rounded-md mb-2 inline-block">Kelas {link.grade}</span>
+                                                                <h5 className="font-bold text-blue-700 leading-tight pr-8">{link.title}</h5>
+                                                            </div>
+                                                            <button onClick={() => handleDeleteLink(link.id)} className="text-red-500 font-black bg-red-50 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-100 absolute top-2 right-2">✕</button>
+                                                        </div>
+                                                        <a href={link.url} target="_blank" rel="noreferrer" className="text-xs text-gray-500 truncate hover:text-blue-500 block">{link.url}</a>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+                );
+            };
+
+            if (loading) return <div className="min-h-screen flex items-center justify-center text-2xl font-bold text-blue-500 animate-pulse">Memuat PAI CERIA...</div>;
+
+            return (
+                <>
+                    {view === 'login' && renderLogin()}
+                    {view === 'student_dash' && user && renderStudentDashboard()}
+                    {view === 'chapter' && user && renderChapter()}
+                    {view === 'teacher_dash' && renderTeacherDashboard()}
+                    
+                    <Modal isOpen={showModal.isOpen} onClose={() => setShowModal({ isOpen: false, msg: '' })} title="Informasi">
+                        <p className="text-lg text-gray-700 whitespace-pre-wrap">{showModal.msg}</p>
+                    </Modal>
+
+                    {/* Delete Confirmation Modal */}
+                    <Modal 
+                        isOpen={!!studentToDelete} 
+                        onClose={() => setStudentToDelete(null)} 
+                        title="⚠️ Konfirmasi Hapus"
+                        hideCloseBtn={true}
+                    >
+                        <p className="text-lg text-gray-700 mb-6 text-center font-medium">
+                            Apakah Anda yakin ingin menghapus data dan nilai milik <br/>
+                            <strong className="text-xl text-blue-600">{studentToDelete?.name}</strong>?
+                            <br/><br/>
+                            <span className="text-red-500 text-sm font-bold bg-red-50 p-2 rounded-lg block">Tindakan ini permanen dan tidak dapat dibatalkan.</span>
+                        </p>
+                        <div className="flex justify-center gap-4">
+                            <Button onClick={() => setStudentToDelete(null)} color="bg-gray-200" className="text-gray-700 shadow-none border-gray-400">Batal</Button>
+                            <Button onClick={handleDeleteStudent} color="bg-red-500" className="text-white border-red-700 shadow-none">Ya, Hapus Data</Button>
+                        </div>
+                    </Modal>
+                </>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
